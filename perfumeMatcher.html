@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perfume Ingredient Matcher</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Tab bar ── */
+    .tab-row {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 1.25rem;
+    }
+
+    .tab {
+      font-size: 13px;
+      padding: 8px 16px;
+      cursor: pointer;
+      color: #888;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: inherit;
+    }
+
+    .tab.active {
+      color: #1a1a18;
+      border-bottom-color: #1a1a18;
+      font-weight: 500;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .controls label {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .controls select {
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #fff;
+      color: #1a1a18;
+      cursor: pointer;
+    }
+
+    /* ── Match cards ── */
+    .match-card {
+      background: #fff;
+      border: 1px solid #e5e5e2;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 10px;
+    }
+
+    .match-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .match-names {
+      font-size: 14px;
+      color: #1a1a18;
+    }
+
+    .match-pct {
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    .pct-high { color: #1D9E75; }
+    .pct-mid  { color: #BA7517; }
+    .pct-low  { color: #888; }
+
+    /* Progress bar */
+    .bar-bg {
+      background: #ebebeb;
+      border-radius: 4px;
+      height: 6px;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .bar-fill {
+      height: 6px;
+      border-radius: 4px;
+    }
+
+    /* Tags */
+    .shared-label {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #f0f0ee;
+      color: #555;
+      border: 1px solid #ddd;
+    }
+
+    .tag-shared {
+      background: #E1F5EE;
+      color: #0F6E56;
+      border-color: #9FE1CB;
+    }
+
+    /* ── Heatmap ── */
+    .heatmap-wrap {
+      overflow-x: auto;
+    }
+
+    table.heatmap {
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 500px;
+    }
+
+    table.heatmap th {
+      font-weight: 500;
+      color: #666;
+      padding: 4px 6px;
+      text-align: left;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    table.heatmap td {
+      padding: 6px 8px;
+      text-align: center;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    table.heatmap td.row-label {
+      text-align: left;
+      color: #1a1a18;
+      font-weight: 500;
+    }
+
+    /* ── Catalog ── */
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .catalog-card {
+      background: #fff;
+      border: 1px solid #e5e5e2;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+    }
+
+    .brand-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 500;
+      color: #1a1a18;
+      margin-bottom: 12px;
+    }
+
+    .scent-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid #f0f0ee;
+    }
+
+    .scent-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a18;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+
+    /* ── Hidden tab panels ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .no-match {
+      font-size: 13px;
+      color: #888;
+      padding: 1rem 0;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Perfume Ingredient Matcher</h1>
+  <p class="subtitle">Comparing ORB and Floral St blends by shared ingredients using Jaccard similarity.</p>
+
+  <!-- Tab navigation -->
+  <div class="tab-row" id="tab-row">
+    <button class="tab active" data-target="panel-matches">Matches</button>
+    <button class="tab"        data-target="panel-heatmap">Heatmap</button>
+    <button class="tab"        data-target="panel-catalog">Catalog</button>
+  </div>
+
+  <!-- Matches panel -->
+  <div class="tab-panel active" id="panel-matches">
+    <div class="controls">
+      <label for="filter-orb">Filter by ORB scent:</label>
+      <select id="filter-orb">
+        <option value="">All ORB scents</option>
+      </select>
+      <label for="sort-by">Sort by:</label>
+      <select id="sort-by">
+        <option value="desc">Highest match first</option>
+        <option value="asc">Lowest match first</option>
+      </select>
+    </div>
+    <div id="matches-list"></div>
+  </div>
+
+  <!-- Heatmap panel -->
+  <div class="tab-panel" id="panel-heatmap">
+    <p class="hint">Match % between each ORB scent (rows) and Floral St scent (columns). Darker green = more shared ingredients.</p>
+    <div class="heatmap-wrap">
+      <table class="heatmap" id="heatmap-table"></table>
+    </div>
+  </div>
+
+  <!-- Catalog panel -->
+  <div class="tab-panel" id="panel-catalog">
+    <div class="catalog-grid" id="catalog-grid"></div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────
+    // DATA
+    // ─────────────────────────────────────────────
+
+    const ORB = [
+      { name: "Lenny",  ingredients: ["bergamot", "orchid", "vanilla"] },
+      { name: "Harper", ingredients: ["salty", "lemon", "amber"] },
+      { name: "River",  ingredients: ["fresh", "amber", "cedarwood"] },
+      { name: "Bobby",  ingredients: ["fresh", "spicy", "sandalwood"] },
+      { name: "Ash",    ingredients: ["fresh", "petitgrain", "cedarwood"] },
+    ];
+
+    const FLORAL_ST = [
+      { name: "Wonderland Peony",    ingredients: ["sicilian lemon","pink berries","pink guava","violet","peony accord","raspberry flower","vanilla bean","pink cotton candy","cedarwood","vetiver"] },
+      { name: "Sunflower Pop",       ingredients: ["bergamot","mandarin","passionfruit","plum blossom","bellini accord","blue orris","honey accord","crystalized musk","crisp amber"] },
+      { name: "Neon Rose",           ingredients: ["bergamot","cassis kir","apple blossom","sichuan pepper","cyclamen","juniper berry","jasmine egypt","angelica","white cedarwood","peach nectar","crisp amber"] },
+      { name: "Arizona Bloom",       ingredients: ["balinese coconut","madagascan black pepper","oak moss","salted musks"] },
+      { name: "Wild Vanilla Orchid", ingredients: ["vanilla","cashmeran","ambroxan","cassis","lemon","bamboo","jasmine","sandalwood","patchouli","orchid"] },
+      { name: "Sweet Almond Blossom",ingredients: ["pink pomelo","vanilla","apple blossom","tonka bean"] },
+      { name: "London Poppy",        ingredients: ["neroli","orange blossom","lemon","apricot blossom","jasmine","cedar","hinoki","amber","orange","sunflower"] },
+      { name: "Chypre Sublime",      ingredients: ["rose","violet","patchouli","labdanum","incense","pink pepper","geranium","benzoin","olibanum"] },
+      { name: "Black Lotus",         ingredients: ["jasmine","saffron","papyrus","black cherry","red peppercorn","saffron centifolia rose","black violet accord","narcotic musk flower","patchouli fraction","labdanum","black vegan leather"] },
+      { name: "Iris Goddess",        ingredients: ["iris","peach","lemon","chilli","violet","suede","carrot seed","patchouli","vanilla","musk"] },
+      { name: "Ylang Ylang Espresso",ingredients: ["ylang ylang","espresso","tangerine","sichuan pepper","rose","jasmine","tiramisu","patchouli","cocoa","guaiac wood"] },
+      { name: "Electric Rhubarb",    ingredients: ["rhubarb","australian sandalwood","island gardenia","frangipani","jasmine sambac"] },
+    ];
+
+    const CYGNET_PERFUMERY = [
+        { name: "Antiquarian", ingredients: ["bergamot", "green cardamom", "cardamom absolute", "virginian cedarwood", "saffron", "vanilla", "opoponax resinoid", "australian sandalwood"] },
+        { name: "Seville", ingredients: ["bitter orange", "bergamot", "green mandarin", "neroli", "petitgrain sur fleurs", "cedrat", "jasmine", "beeswax absolute", "ambrette"] },
+        { name: "Plein Air", ingredients: ["elderflower", "geranium bourbon", "bergamot", "alpine Lavender", "clary sage absolute", "French hay", "patchouli", "tonka bean", "vetiver", "oakmoss"] },
+        { name: "Conifer", ingredients: ["silver fir needle", "wild orange", "juniper berry", "fir balsam absolute", "cypress", "treemoss", "pine absolute", "labdanum"] },
+        { name: "Vigneron", ingredients: ["green cognac", "pink pepper", "bergamot", "rose", "ambrette", "raspberry leaf", "blackcurrant bud", "oak", "orris absolute", "aged patchouli"] },
+        { name: "Avant la Nuit", ingredients: ["cognac", "cinnamon", "peach", "dried fruits", "ylang ylang", "tobacco", "cedarwood alaska", "sandalwood", "amber"] },
+    ]
+
+    // ─────────────────────────────────────────────
+    // SYNONYMS
+    // Ingredients that should be treated as the same
+    // thing even though they're worded differently.
+    // Each key maps to the canonical group it belongs to.
+    // ─────────────────────────────────────────────
+
+    const SYNONYM_GROUPS = [
+      ["amber", "crisp amber"],
+      ["cedarwood", "white cedarwood", "cedar", "cedarwood alaska", "virginian cedarwood"],
+      ["lemon", "sicilian lemon"],
+      ["sandalwood", "australian sandalwood"],
+      ["vanilla", "vanilla bean"],
+      ["mandarin", "green mandarin"],
+      ["patchouli", "aged patchouli", "patchouli fraction"],
+      ["ylang ylang", "ylang ylang absolute"],
+      ["jasmine", "jasmine sambac", "jasmine egypt"],
+      ["rose", "centifolia rose"],
+    ];
+
+    /**
+     * Build a lookup map: ingredient string → canonical group ID (index).
+     * Any ingredient not in a group maps to itself (no aliasing needed).
+     */
+    function buildSynonymMap(groups) {
+      const map = {};
+      groups.forEach((group, idx) => {
+        group.forEach(name => {
+          map[name.toLowerCase()] = idx;
+        });
+      });
+      return map;
+    }
+
+    const synonymMap = buildSynonymMap(SYNONYM_GROUPS);
+    console.log("synonymMap:", synonymMap);
+
+    /**
+     * Convert an ingredient name to a canonical key.
+     * If it belongs to a synonym group, return "group:<idx>".
+     * Otherwise return the lowercased ingredient string.
+     */
+    function canonicalize(ingredient) {
+      const lower = ingredient.toLowerCase().trim();
+      return synonymMap[lower] !== undefined
+        ? "group:" + synonymMap[lower]
+        : lower;
+    }
+
+    /**
+     * Convert an ingredient list to a Set of canonical keys.
+     */
+    function toCanonicalSet(ingredients) {
+      return new Set(ingredients.map(canonicalize));
+    }
+
+    // ─────────────────────────────────────────────
+    // JACCARD SIMILARITY
+    //
+    // Jaccard(A, B) = |A ∩ B| / |A ∪ B|
+    //
+    // A and B are sets of canonical ingredient keys.
+    // Returns a value 0–1 (multiply by 100 for a percentage).
+    // ─────────────────────────────────────────────
+
+    function jaccardSimilarity(setA, setB) {
+      // Intersection: elements in both A and B
+      const intersection = [...setA].filter(x => setB.has(x));
+
+      // Union: all unique elements across both sets
+      const union = new Set([...setA, ...setB]);
+
+      if (union.size === 0) return 0; // avoid division by zero
+      return intersection.length / union.size;
+    }
+
+    /**
+     * Given two raw ingredient arrays, compute:
+     *   - pct     : integer match percentage (0–100)
+     *   - shared  : array of canonical keys that are shared
+     */
+    function computeMatch(ingredientsA, ingredientsB) {
+      const setA = toCanonicalSet(ingredientsA);
+      const setB = toCanonicalSet(ingredientsB);
+      const intersection = [...setA].filter(x => setB.has(x));
+      const union = new Set([...setA, ...setB]);
+      const pct = union.size === 0 ? 0 : Math.round((intersection.length / union.size) * 100);
+      return { pct, shared: intersection };
+    }
+
+    // ─────────────────────────────────────────────
+    // BUILD FULL MATCH TABLE
+    // One entry per (ORB scent, Floral St scent) pair.
+    // ─────────────────────────────────────────────
+
+    function buildAllMatches(orbList, fsList) {
+      const results = [];
+      orbList.forEach(o => {
+        fsList.forEach(f => {
+          const { pct, shared } = computeMatch(o.ingredients, f.ingredients);
+          results.push({
+            orbName: o.name,
+            fsName:  f.name,
+            pct,
+            shared,
+          });
+        });
+      });
+      return results;
+    }
+
+    const ALL_MATCHES = buildAllMatches(ORB, FLORAL_ST);
+
+    // ─────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────
+
+    /** Turn a canonical key back into a readable label. */
+    function readableKey(key) {
+      if (key.startsWith("group:")) {
+        const idx = parseInt(key.split(":")[1]);
+        // Show the first synonym in the group as the display name
+        return SYNONYM_GROUPS[idx][0];
+      }
+      return key;
+    }
+
+    /** Pick CSS class for the percentage colour. */
+    function pctClass(p) {
+      if (p >= 20) return "pct-high";
+      if (p >= 10) return "pct-mid";
+      return "pct-low";
+    }
+
+    /** Pick fill colour for the progress bar. */
+    function barColor(p) {
+      if (p >= 20) return "#1D9E75";
+      if (p >= 10) return "#BA7517";
+      return "#ccc";
+    }
+
+    // ─────────────────────────────────────────────
+    // RENDER: MATCHES LIST
+    // ─────────────────────────────────────────────
+
+    function renderMatches() {
+      const filterOrb = document.getElementById("filter-orb").value;
+      const sortDir   = document.getElementById("sort-by").value;
+
+      let data = filterOrb
+        ? ALL_MATCHES.filter(m => m.orbName === filterOrb)
+        : [...ALL_MATCHES];
+
+      data.sort((a, b) => sortDir === "desc" ? b.pct - a.pct : a.pct - b.pct);
+
+      const list = document.getElementById("matches-list");
+
+      if (data.length === 0) {
+        list.innerHTML = '<p class="no-match">No matches found.</p>';
+        return;
+      }
+
+      list.innerHTML = data.map(m => {
+        const sharedTags = m.shared.length > 0
+          ? `<p class="shared-label">Shared ingredients</p>
+             <div class="tags">
+               ${m.shared.map(s => `<span class="tag tag-shared">${readableKey(s)}</span>`).join("")}
+             </div>`
+          : `<p class="shared-label">No shared ingredients</p>`;
+
+        return `
+          <div class="match-card">
+            <div class="match-header">
+              <div class="match-names">
+                ORB <strong>${m.orbName}</strong> → Floral St <strong>${m.fsName}</strong>
+              </div>
+              <div class="match-pct ${pctClass(m.pct)}">${m.pct}%</div>
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill" style="width: ${m.pct}%; background: ${barColor(m.pct)};"></div>
+            </div>
+            ${sharedTags}
+          </div>`;
+      }).join("");
+    }
+
+    // ─────────────────────────────────────────────
+    // RENDER: HEATMAP
+    // ─────────────────────────────────────────────
+
+    function renderHeatmap() {
+      const table    = document.getElementById("heatmap-table");
+      const orbNames = ORB.map(o => o.name);
+      const fsNames  = FLORAL_ST.map(f => f.name);
+
+      // Header row with Floral St scent names (rotated via CSS)
+      const headerCells = fsNames.map(n => {
+        const short = n.length > 14 ? n.slice(0, 13) + "…" : n;
+        return `<th title="${n}" style="writing-mode:vertical-rl;transform:rotate(180deg);max-width:60px;padding-bottom:8px;">${short}</th>`;
+      }).join("");
+
+      let html = `<thead><tr><th></th>${headerCells}</tr></thead><tbody>`;
+
+      // One row per ORB scent
+      orbNames.forEach(orbName => {
+        html += `<tr><td class="row-label">${orbName}</td>`;
+        fsNames.forEach(fsName => {
+          const match = ALL_MATCHES.find(m => m.orbName === orbName && m.fsName === fsName);
+          const p     = match ? match.pct : 0;
+
+          // Colour scale: white → light green → mid green → dark green
+          let bg = "#f5f4f0", fg = "#888";
+          if      (p >= 25) { bg = "#085041"; fg = "#9FE1CB"; }
+          else if (p >= 15) { bg = "#1D9E75"; fg = "#E1F5EE"; }
+          else if (p >= 8)  { bg = "#9FE1CB"; fg = "#085041"; }
+          else if (p >  0)  { bg = "#E1F5EE"; fg = "#0F6E56"; }
+
+          html += `<td title="${orbName} vs ${fsName}: ${p}%"
+                      style="background:${bg};color:${fg};min-width:44px;">${p}%</td>`;
+        });
+        html += "</tr>";
+      });
+
+      html += "</tbody>";
+      table.innerHTML = html;
+    }
+
+    // ─────────────────────────────────────────────
+    // RENDER: CATALOG
+    // ─────────────────────────────────────────────
+
+    function renderCatalog() {
+      function brandCard(brandName, scents) {
+        const rows = scents.map(s => {
+          const tagHtml = s.ingredients
+            .map(i => `<span class="tag">${i}</span>`)
+            .join("");
+          return `
+            <div class="scent-row">
+              <div class="scent-name">${s.name}</div>
+              <div class="tags">${tagHtml}</div>
+            </div>`;
+        }).join("");
+
+        return `
+          <div class="catalog-card">
+            <div class="brand-eyebrow">Brand</div>
+            <div class="brand-name">${brandName}</div>
+            ${rows}
+          </div>`;
+      }
+
+      document.getElementById("catalog-grid").innerHTML =
+        brandCard("ORB", ORB) + brandCard("Floral St", FLORAL_ST);
+    }
+
+    // ─────────────────────────────────────────────
+    // POPULATE FILTER DROPDOWN
+    // ─────────────────────────────────────────────
+
+    const orbSelect = document.getElementById("filter-orb");
+    ORB.forEach(o => {
+      const opt = document.createElement("option");
+      opt.value       = o.name;
+      opt.textContent = o.name;
+      orbSelect.appendChild(opt);
+    });
+
+    // ─────────────────────────────────────────────
+    // EVENT LISTENERS
+    // ─────────────────────────────────────────────
+
+    orbSelect.addEventListener("change", renderMatches);
+    document.getElementById("sort-by").addEventListener("change", renderMatches);
+
+    document.getElementById("tab-row").querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        // Toggle active tab button
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        // Show/hide panels
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        document.getElementById(tab.dataset.target).classList.add("active");
+      });
+    });
+
+    // ─────────────────────────────────────────────
+    // INITIAL RENDER
+    // ─────────────────────────────────────────────
+
+    renderMatches();
+    renderHeatmap();
+    renderCatalog();
+  </script>
+</body>
+</html>
